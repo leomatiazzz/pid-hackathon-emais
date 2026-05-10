@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { MapState } from "@/app/page";
+import type { MapState } from "@/types/map";
 import { Layers, Info } from "lucide-react";
 
 // ArcGIS SDK uses browser-only APIs (WebGL, Workers) — must be SSR-disabled

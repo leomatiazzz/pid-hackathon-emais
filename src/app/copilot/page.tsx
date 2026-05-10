@@ -3,11 +3,7 @@
 import { useState } from "react";
 import ChatInterface from "@/components/ChatInterface";
 import MapViewer from "@/components/MapViewer";
-
-export type MapState = {
-  showGreenSteelLayer: boolean;
-  activeLayer: string | null;
-};
+import type { MapState } from "@/types/map";
 
 export default function CopilotPage() {
   const [mapState, setMapState] = useState<MapState>({

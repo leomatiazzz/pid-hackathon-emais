@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
-import type { MapState } from "@/app/page";
+import type { MapState } from "@/types/map";
 import { GREEN_STEEL_SITES } from "./MapViewer";
 
 /* Fix Leaflet default icon paths in Next.js */

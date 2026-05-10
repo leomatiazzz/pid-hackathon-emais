@@ -21,10 +21,10 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        {/* ArcGIS Maps SDK v5 – dark theme */}
+        {/* ArcGIS Maps SDK v5 – light theme (assets locais em /public/arcgis-assets) */}
         <link
           rel="stylesheet"
-          href="https://js.arcgis.com/4.32/@arcgis/core/assets/esri/themes/dark/main.css"
+          href="/arcgis-assets/esri/themes/light/main.css"
         />
       </head>
       <body>{children}</body>

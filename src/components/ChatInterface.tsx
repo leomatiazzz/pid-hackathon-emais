@@ -12,7 +12,7 @@ import {
   Sparkles,
   MapPin,
 } from "lucide-react";
-import type { MapState } from "@/app/page";
+import type { MapState } from "@/types/map";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type Role = "user" | "assistant";
