@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "PID — Plataforma Interativa de Descarbonização",
   description:
     "Assistente de IA conversacional para análise geoespacial da transição energética no Brasil.",
+  icons: {
+    icon: "/Ícone.ico",
+  },
 };
 
 export default function RootLayout({
