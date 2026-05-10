@@ -5,218 +5,167 @@
  * Motor real de mapa usando @arcgis/core v5.
  * Carregado APENAS no cliente (via dynamic() em MapViewer.tsx).
  *
- * Camadas estáticas (infraestrutura, sempre visíveis):
- *  - Hubs de Descarbonização  → Roxo
- *  - Instalações Portuárias   → Azul Claro
- *  - Biomassa Existente       → Verde Escuro
- *  - Biometano Comercial      → Laranja
- *  - Eólica Existente         → Ciano
- *  - Solar UFV Existente      → Marrom/Dourado
- *  - Hidrelétrica UHE         → Cinza Escuro
+ * ─── Arquitetura de Dados ──────────────────────────────────────────────────
+ * As camadas de infraestrutura consomem FeatureLayers reais do SIGEL/ANEEL:
+ *   Base: https://sigel.aneel.gov.br/arcgis/rest/services/PORTAL/Camadas_Downloads/FeatureServer/{id}
+ *
+ *   ID  │ Camada
+ *   ────┼──────────────────────────────────────────────────────
+ *    0  │ Central Geradora Eólica - EOL          (Point)
+ *    2  │ Usinas Hidrelétricas - UHE             (Point)
+ *    3  │ Pequenas Centrais Hidrelétricas - PCH  (Point)
+ *    8  │ Aerogeradores                          (Point)
+ *   18  │ Usinas Termelétricas - UTE (≈ Biomassa)(Point)
+ *   21  │ Centrais Geradoras Solares UFV         (Point)
+ *
+ * Camadas sem FeatureLayer nativo da ANEEL (placeholder para integração futura):
+ *   - Hubs de Descarbonização       → URL_PLACEHOLDER_HUBS_DESCARB
+ *   - Instalações Portuárias        → URL_PLACEHOLDER_PORTOS
+ *   - Biometano Comercial           → URL_PLACEHOLDER_BIOMETANO
  *
  * Camada reativa ao chat:
- *  - Aço Verde                → Verde Médio (toggle via mapState)
+ *   - Aço Verde                     → URL_PLACEHOLDER_ACO_VERDE (ex: MapBiomas/IBGE)
+ *
+ * ─── Basemap ──────────────────────────────────────────────────────────────
+ * Carto Positron via WebTileLayer (público, sem auth Esri)
+ * Assets locais em /public/arcgis-assets (SDK v5.0.19)
  */
 
 import { useEffect, useRef } from "react";
 import type { MapState } from "@/types/map";
+import type EsriFeatureLayer from "@arcgis/core/layers/FeatureLayer";
+
 
 /* ═══════════════════════════════════════════════════════════════════
-   DATASETS MOCKADOS — representativos das fontes ANEEL/EPE/SIGEL
-   Em produção: substituir por FeatureLayer apontando para REST API
+   BASE URL — SIGEL/ANEEL FeatureServer (descoberto via REST catalog)
+   https://sigel.aneel.gov.br/arcgis/rest/services/PORTAL/Camadas_Downloads/FeatureServer
    ═══════════════════════════════════════════════════════════════════ */
+const SIGEL_BASE =
+  "https://sigel.aneel.gov.br/arcgis/rest/services/PORTAL/Camadas_Downloads/FeatureServer";
 
-/** Hubs de Descarbonização — Roxo #9333EA */
-const HUBS_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    { type: "Feature", properties: { name: "Hub Nordeste",     tipo: "Hub Descarbonização" }, geometry: { type: "Point", coordinates: [-38.512,  -3.717] } },
-    { type: "Feature", properties: { name: "Hub Sudeste",      tipo: "Hub Descarbonização" }, geometry: { type: "Point", coordinates: [-43.945, -19.928] } },
-    { type: "Feature", properties: { name: "Hub Sul Verde",    tipo: "Hub Descarbonização" }, geometry: { type: "Point", coordinates: [-51.230, -30.034] } },
-    { type: "Feature", properties: { name: "Hub Amazônia",     tipo: "Hub Descarbonização" }, geometry: { type: "Point", coordinates: [-60.025,  -3.100] } },
-    { type: "Feature", properties: { name: "Hub Centro-Oeste", tipo: "Hub Descarbonização" }, geometry: { type: "Point", coordinates: [-49.264, -16.686] } },
-  ],
-};
-
-/** Instalações Portuárias — Azul Claro #38BDF8 */
-const PORTOS_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    { type: "Feature", properties: { name: "Porto de Santos",       tipo: "Instalação Portuária" }, geometry: { type: "Point", coordinates: [-46.333, -23.967] } },
-    { type: "Feature", properties: { name: "Porto do Açu",          tipo: "Instalação Portuária" }, geometry: { type: "Point", coordinates: [-41.462, -21.836] } },
-    { type: "Feature", properties: { name: "Porto de Itaguaí",      tipo: "Instalação Portuária" }, geometry: { type: "Point", coordinates: [-43.773, -22.866] } },
-    { type: "Feature", properties: { name: "Porto de Suape",        tipo: "Instalação Portuária" }, geometry: { type: "Point", coordinates: [-34.947,  -8.399] } },
-    { type: "Feature", properties: { name: "Porto de Pecém",        tipo: "Instalação Portuária" }, geometry: { type: "Point", coordinates: [-38.797,  -3.527] } },
-    { type: "Feature", properties: { name: "Porto de Paranaguá",    tipo: "Instalação Portuária" }, geometry: { type: "Point", coordinates: [-48.513, -25.520] } },
-    { type: "Feature", properties: { name: "Porto de Rio Grande",   tipo: "Instalação Portuária" }, geometry: { type: "Point", coordinates: [-52.098, -32.036] } },
-    { type: "Feature", properties: { name: "Porto de Barcarena",    tipo: "Instalação Portuária" }, geometry: { type: "Point", coordinates: [-48.620,  -1.502] } },
-  ],
-};
-
-/** Biomassa Existente — Verde Escuro #15803D */
-const BIOMASSA_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    { type: "Feature", properties: { name: "Usina Bonfim (SP)",        tipo: "Biomassa" }, geometry: { type: "Point", coordinates: [-47.302, -21.060] } },
-    { type: "Feature", properties: { name: "Usina Coruripe (AL)",      tipo: "Biomassa" }, geometry: { type: "Point", coordinates: [-36.176,  -9.932] } },
-    { type: "Feature", properties: { name: "Usina Jalles Machado (GO)",tipo: "Biomassa" }, geometry: { type: "Point", coordinates: [-49.938, -15.326] } },
-    { type: "Feature", properties: { name: "Usina São Martinho (SP)",  tipo: "Biomassa" }, geometry: { type: "Point", coordinates: [-48.120, -20.397] } },
-    { type: "Feature", properties: { name: "Usina Itarumã (GO)",       tipo: "Biomassa" }, geometry: { type: "Point", coordinates: [-51.320, -18.748] } },
-    { type: "Feature", properties: { name: "Usina Catende (PE)",       tipo: "Biomassa" }, geometry: { type: "Point", coordinates: [-35.714,  -8.677] } },
-    { type: "Feature", properties: { name: "Usina Guaíra (SP)",        tipo: "Biomassa" }, geometry: { type: "Point", coordinates: [-48.319, -20.317] } },
-  ],
-};
-
-/** Biometano Comercial — Laranja #F97316 */
-const BIOMETANO_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    { type: "Feature", properties: { name: "Biometano Caieiras (SP)",    tipo: "Biometano" }, geometry: { type: "Point", coordinates: [-46.737, -23.362] } },
-    { type: "Feature", properties: { name: "Biometano Nova Iguaçu (RJ)", tipo: "Biometano" }, geometry: { type: "Point", coordinates: [-43.451, -22.745] } },
-    { type: "Feature", properties: { name: "Biometano Canoas (RS)",      tipo: "Biometano" }, geometry: { type: "Point", coordinates: [-51.184, -29.919] } },
-    { type: "Feature", properties: { name: "Biometano Fortaleza (CE)",   tipo: "Biometano" }, geometry: { type: "Point", coordinates: [-38.543,  -3.717] } },
-    { type: "Feature", properties: { name: "Biometano Cuiabá (MT)",      tipo: "Biometano" }, geometry: { type: "Point", coordinates: [-56.096, -15.601] } },
-  ],
-};
-
-/** Eólica Existente — Ciano #06B6D4 */
-const EOLICA_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    { type: "Feature", properties: { name: "Parque Eólico Abará (BA)",        tipo: "Eólica" }, geometry: { type: "Point", coordinates: [-41.850, -11.378] } },
-    { type: "Feature", properties: { name: "Parque Eólico Mucuripe (CE)",     tipo: "Eólica" }, geometry: { type: "Point", coordinates: [-38.480,  -3.725] } },
-    { type: "Feature", properties: { name: "Parque Eólico Osório (RS)",       tipo: "Eólica" }, geometry: { type: "Point", coordinates: [-50.270, -29.891] } },
-    { type: "Feature", properties: { name: "Parque Eólico Alto Sertão (BA)",  tipo: "Eólica" }, geometry: { type: "Point", coordinates: [-42.630, -14.210] } },
-    { type: "Feature", properties: { name: "Parque Eólico Lagoa dos Ventos (PI)", tipo: "Eólica" }, geometry: { type: "Point", coordinates: [-41.779,  -8.110] } },
-    { type: "Feature", properties: { name: "Parque Eólico Tucano (BA)",       tipo: "Eólica" }, geometry: { type: "Point", coordinates: [-38.780, -11.010] } },
-    { type: "Feature", properties: { name: "Parque Eólico São João do Norte (RN)", tipo: "Eólica" }, geometry: { type: "Point", coordinates: [-36.920,  -5.120] } },
-    { type: "Feature", properties: { name: "Parque Eólico Ceará Mirim (RN)", tipo: "Eólica" }, geometry: { type: "Point", coordinates: [-35.430,  -5.640] } },
-  ],
-};
-
-/** Solar UFV Existente — Marrom/Dourado #92400E */
-const SOLAR_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    { type: "Feature", properties: { name: "UFV Pirapora (MG)",         tipo: "Solar UFV" }, geometry: { type: "Point", coordinates: [-44.940, -17.341] } },
-    { type: "Feature", properties: { name: "UFV Lapa (BA)",             tipo: "Solar UFV" }, geometry: { type: "Point", coordinates: [-43.395, -13.961] } },
-    { type: "Feature", properties: { name: "UFV Nova Olímpia (MG)",     tipo: "Solar UFV" }, geometry: { type: "Point", coordinates: [-44.931, -18.020] } },
-    { type: "Feature", properties: { name: "UFV São Francisco (MG)",    tipo: "Solar UFV" }, geometry: { type: "Point", coordinates: [-44.862, -15.950] } },
-    { type: "Feature", properties: { name: "UFV Floresta (PE)",         tipo: "Solar UFV" }, geometry: { type: "Point", coordinates: [-38.574,  -8.600] } },
-    { type: "Feature", properties: { name: "UFV Juazeiro (BA)",         tipo: "Solar UFV" }, geometry: { type: "Point", coordinates: [-40.497,  -9.413] } },
-    { type: "Feature", properties: { name: "UFV Sobradinho (BA)",       tipo: "Solar UFV" }, geometry: { type: "Point", coordinates: [-40.830,  -9.455] } },
-    { type: "Feature", properties: { name: "UFV Aquiraz (CE)",          tipo: "Solar UFV" }, geometry: { type: "Point", coordinates: [-38.381,  -3.896] } },
-  ],
-};
-
-/** Hidrelétrica UHE — Cinza Escuro #374151 */
-const UHE_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    { type: "Feature", properties: { name: "UHE Itaipu (PR/PY)",       tipo: "Hidrelétrica" }, geometry: { type: "Point", coordinates: [-54.596, -25.408] } },
-    { type: "Feature", properties: { name: "UHE Belo Monte (PA)",      tipo: "Hidrelétrica" }, geometry: { type: "Point", coordinates: [-52.391,  -3.117] } },
-    { type: "Feature", properties: { name: "UHE Tucuruí (PA)",         tipo: "Hidrelétrica" }, geometry: { type: "Point", coordinates: [-49.618,  -3.830] } },
-    { type: "Feature", properties: { name: "UHE Santo Antônio (RO)",   tipo: "Hidrelétrica" }, geometry: { type: "Point", coordinates: [-64.059,  -8.793] } },
-    { type: "Feature", properties: { name: "UHE Jirau (RO)",           tipo: "Hidrelétrica" }, geometry: { type: "Point", coordinates: [-64.649,  -9.271] } },
-    { type: "Feature", properties: { name: "UHE Ilha Solteira (SP)",   tipo: "Hidrelétrica" }, geometry: { type: "Point", coordinates: [-51.344, -20.423] } },
-    { type: "Feature", properties: { name: "UHE Xingó (SE/AL)",        tipo: "Hidrelétrica" }, geometry: { type: "Point", coordinates: [-37.791,  -9.663] } },
-    { type: "Feature", properties: { name: "UHE Três Marias (MG)",     tipo: "Hidrelétrica" }, geometry: { type: "Point", coordinates: [-45.265, -18.213] } },
-  ],
-};
-
-/** Aço Verde — Verde Médio #22C55E (reativo ao chat) */
-const ACO_VERDE_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    { type: "Feature", properties: { name: "Usiminas",                  city: "Ipatinga/MG"      }, geometry: { type: "Point", coordinates: [-42.537, -19.469] } },
-    { type: "Feature", properties: { name: "Gerdau Acominas",           city: "Ouro Branco/MG"   }, geometry: { type: "Point", coordinates: [-43.698, -20.529] } },
-    { type: "Feature", properties: { name: "ArcelorMittal Brasil",      city: "Serra/ES"         }, geometry: { type: "Point", coordinates: [-40.308, -20.127] } },
-    { type: "Feature", properties: { name: "CSN",                       city: "Volta Redonda/RJ" }, geometry: { type: "Point", coordinates: [-44.104, -22.523] } },
-    { type: "Feature", properties: { name: "Ternium Brasil",            city: "Rio de Janeiro/RJ"}, geometry: { type: "Point", coordinates: [-43.172, -22.906] } },
-    { type: "Feature", properties: { name: "Aperam",                    city: "Timóteo/MG"       }, geometry: { type: "Point", coordinates: [-42.645, -19.582] } },
-    { type: "Feature", properties: { name: "Vallourec",                 city: "Jeceaba/MG"       }, geometry: { type: "Point", coordinates: [-43.950, -20.606] } },
-    { type: "Feature", properties: { name: "ArcelorMittal Piracicaba",  city: "Piracicaba/SP"    }, geometry: { type: "Point", coordinates: [-47.647, -22.725] } },
-    { type: "Feature", properties: { name: "Gerdau",                    city: "Porto Alegre/RS"  }, geometry: { type: "Point", coordinates: [-51.217, -30.034] } },
-    { type: "Feature", properties: { name: "ArcelorMittal Resende",     city: "Resende/RJ"       }, geometry: { type: "Point", coordinates: [-44.450, -22.470] } },
-  ],
-};
-
-/* ─── Configuração visual de cada camada ─────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   CONFIGURAÇÃO DAS CAMADAS
+   Cada entrada define:
+     url      → Endpoint REST FeatureServer/{layerId} (SIGEL real ou placeholder)
+     color    → RGBA para override do renderer nativo
+     size     → Tamanho do marcador
+     title    → Nome exibido na legenda/popup
+     emoji    → Ícone para o header do popup
+     source   → Instituição fonte (para attribution)
+     isPlaceholder → true = URL ainda não confirmada, não tentará carregar
+   ═══════════════════════════════════════════════════════════════════ */
 interface LayerConfig {
-  geojson: object;
-  color: [number, number, number, number]; // RGBA
-  size: string;
+  url: string;
+  color: [number, number, number, number]; // RGBA 0-255
   outlineColor: [number, number, number, number];
+  size: string;
   title: string;
   emoji: string;
-  popupField: string; // campo do GeoJSON para o popup
+  source: string;
+  isPlaceholder?: boolean;
 }
 
 const STATIC_LAYERS: LayerConfig[] = [
+  // ── Fontes com FeatureServer SIGEL/ANEEL confirmadas ──────────────────
   {
-    geojson:      HUBS_GEOJSON,
-    color:        [147, 51, 234, 0.92],  // Roxo    #9333EA
+    // Camada 0 — EOL: Central Geradora Eólica
+    url:          `${SIGEL_BASE}/0`,
+    color:        [6, 182, 212, 0.88],   // Ciano    #06B6D4
     outlineColor: [255, 255, 255, 0.7],
-    size:         "16px",
-    title:        "Hubs Descarbonização",
-    emoji:        "🟣",
-    popupField:   "name",
-  },
-  {
-    geojson:      PORTOS_GEOJSON,
-    color:        [56, 189, 248, 0.92],  // Azul Claro #38BDF8
-    outlineColor: [255, 255, 255, 0.7],
-    size:         "13px",
-    title:        "Inst. Portuárias",
-    emoji:        "🔵",
-    popupField:   "name",
-  },
-  {
-    geojson:      BIOMASSA_GEOJSON,
-    color:        [21, 128, 61, 0.92],   // Verde Escuro #15803D
-    outlineColor: [255, 255, 255, 0.6],
-    size:         "12px",
-    title:        "Biomassa Existente",
-    emoji:        "🟢",
-    popupField:   "name",
-  },
-  {
-    geojson:      BIOMETANO_GEOJSON,
-    color:        [249, 115, 22, 0.92],  // Laranja  #F97316
-    outlineColor: [255, 255, 255, 0.6],
-    size:         "12px",
-    title:        "Biometano Comercial",
-    emoji:        "🟠",
-    popupField:   "name",
-  },
-  {
-    geojson:      EOLICA_GEOJSON,
-    color:        [6, 182, 212, 0.92],   // Ciano    #06B6D4
-    outlineColor: [255, 255, 255, 0.6],
-    size:         "12px",
+    size:         "11px",
     title:        "Energia Eólica",
     emoji:        "🩵",
-    popupField:   "name",
+    source:       "SIGEL/ANEEL",
   },
   {
-    geojson:      SOLAR_GEOJSON,
-    color:        [146, 64, 14, 0.92],   // Marrom   #92400E
-    outlineColor: [255, 255, 255, 0.6],
+    // Camada 2 — UHE: Usinas Hidrelétricas
+    url:          `${SIGEL_BASE}/2`,
+    color:        [55, 65, 81, 0.9],     // Cinza Escuro #374151
+    outlineColor: [255, 255, 255, 0.65],
     size:         "12px",
-    title:        "Solar UFV",
-    emoji:        "🟤",
-    popupField:   "name",
-  },
-  {
-    geojson:      UHE_GEOJSON,
-    color:        [55, 65, 81, 0.92],    // Cinza Escuro #374151
-    outlineColor: [255, 255, 255, 0.6],
-    size:         "13px",
     title:        "Hidrelétrica UHE",
     emoji:        "⚫",
-    popupField:   "name",
+    source:       "SIGEL/ANEEL",
+  },
+  {
+    // Camada 3 — PCH: Pequenas Centrais Hidrelétricas
+    url:          `${SIGEL_BASE}/3`,
+    color:        [100, 116, 139, 0.85], // Slate     #64748B
+    outlineColor: [255, 255, 255, 0.6],
+    size:         "9px",
+    title:        "Hidrelétrica PCH",
+    emoji:        "🔘",
+    source:       "SIGEL/ANEEL",
+  },
+  {
+    // Camada 18 — UTE: Termelétricas (inclui biomassa/biometano)
+    url:          `${SIGEL_BASE}/18`,
+    color:        [21, 128, 61, 0.88],   // Verde Escuro #15803D
+    outlineColor: [255, 255, 255, 0.65],
+    size:         "11px",
+    title:        "Biomassa / UTE",
+    emoji:        "🟢",
+    source:       "SIGEL/ANEEL",
+  },
+  {
+    // Camada 21 — UFV: Centrais Solares Fotovoltaicas
+    url:          `${SIGEL_BASE}/21`,
+    color:        [146, 64, 14, 0.88],   // Marrom/Âmbar #92400E
+    outlineColor: [255, 255, 255, 0.6],
+    size:         "11px",
+    title:        "Solar UFV",
+    emoji:        "🟤",
+    source:       "SIGEL/ANEEL",
+  },
+
+  // ── Fontes ainda sem FeatureServer público mapeado (placeholders) ────
+  {
+    // TODO: mapear endpoint real (ex: EPE FeatureServer ou MapBiomas WFS)
+    url:          "URL_PLACEHOLDER_HUBS_DESCARB",
+    color:        [147, 51, 234, 0.9],   // Roxo     #9333EA
+    outlineColor: [255, 255, 255, 0.75],
+    size:         "14px",
+    title:        "Hubs Descarbonização",
+    emoji:        "🟣",
+    source:       "EPE / BNDES",
+    isPlaceholder: true,
+  },
+  {
+    // TODO: mapear endpoint real (ex: ANTAQ / SEP FeatureServer)
+    url:          "URL_PLACEHOLDER_PORTOS",
+    color:        [56, 189, 248, 0.88],  // Azul Claro #38BDF8
+    outlineColor: [255, 255, 255, 0.7],
+    size:         "12px",
+    title:        "Inst. Portuárias",
+    emoji:        "🔵",
+    source:       "ANTAQ / SEP",
+    isPlaceholder: true,
+  },
+  {
+    // TODO: mapear endpoint real (ex: ANP Biometano FeatureServer)
+    url:          "URL_PLACEHOLDER_BIOMETANO",
+    color:        [249, 115, 22, 0.88],  // Laranja  #F97316
+    outlineColor: [255, 255, 255, 0.65],
+    size:         "11px",
+    title:        "Biometano Comercial",
+    emoji:        "🟠",
+    source:       "ANP / MME",
+    isPlaceholder: true,
   },
 ];
+
+/** Camada reativa ao chat — ativada quando usuário pergunta sobre Aço Verde */
+const ACO_VERDE_LAYER: LayerConfig = {
+  // TODO: substituir pelo FeatureServer real do MapBiomas ou IBGE (indústrias siderúrgicas)
+  url:          "URL_PLACEHOLDER_ACO_VERDE",
+  color:        [34, 197, 94, 0.95],   // Verde Médio #22C55E
+  outlineColor: [255, 255, 255, 0.85],
+  size:         "14px",
+  title:        "Aço Verde",
+  emoji:        "🟢",
+  source:       "MapBiomas / IBGE",
+  isPlaceholder: true,
+};
 
 /* ─── Props ──────────────────────────────────────────────────── */
 interface ArcGISMapProps {
@@ -225,10 +174,9 @@ interface ArcGISMapProps {
 
 /* ─── Component ──────────────────────────────────────────────── */
 export default function ArcGISMap({ mapState }: ArcGISMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
+  const containerRef    = useRef<HTMLDivElement>(null);
   const viewRef         = useRef<__esri.MapView | null>(null);
-  const acoVerdeLayerRef = useRef<__esri.GeoJSONLayer | null>(null);
+  const acoVerdeRef     = useRef<EsriFeatureLayer | null>(null);
   const initializedRef  = useRef(false);
 
   /* ── Inicialização do mapa (executa 1× ao montar) ─────────── */
@@ -239,110 +187,119 @@ export default function ArcGISMap({ mapState }: ArcGISMapProps) {
     let view: __esri.MapView;
 
     const init = async () => {
-      // ─ 1. Assets path — usa cópia local em /public/arcgis-assets
-      //      (evita mismatch entre SDK v5.0.19 e CDN 4.32)
+      // ─ 1. Assets path — cópia local (evita mismatch SDK v5.0.19 vs CDN 4.32)
       const { default: esriConfig } = await import("@arcgis/core/config.js");
       esriConfig.assetsPath = "/arcgis-assets";
       if (esriConfig.log) (esriConfig.log as { level: string }).level = "error";
 
-      // ─ 2. Imports dinâmicos
+      // ─ 2. Imports dinâmicos (todos client-side)
       const [
         { default: Map },
         { default: MapView },
-        { default: GeoJSONLayer },
+        { default: FeatureLayer },
         { default: SimpleRenderer },
         { default: SimpleMarkerSymbol },
         { default: PopupTemplate },
+        { default: Basemap },
+        { default: WebTileLayer },
       ] = await Promise.all([
         import("@arcgis/core/Map.js"),
         import("@arcgis/core/views/MapView.js"),
-        import("@arcgis/core/layers/GeoJSONLayer.js"),
+        import("@arcgis/core/layers/FeatureLayer.js"),
         import("@arcgis/core/renderers/SimpleRenderer.js"),
         import("@arcgis/core/symbols/SimpleMarkerSymbol.js"),
         import("@arcgis/core/PopupTemplate.js"),
+        import("@arcgis/core/Basemap.js"),
+        import("@arcgis/core/layers/WebTileLayer.js"),
       ]);
 
-      /** Utilitário: cria GeoJSONLayer a partir de um objeto GeoJSON inline */
-      const makeLayer = (cfg: LayerConfig): __esri.GeoJSONLayer => {
-        const blob    = new Blob([JSON.stringify(cfg.geojson)], { type: "application/json" });
-        const blobUrl = URL.createObjectURL(blob);
+      /**
+       * Fábrica de FeatureLayer.
+       * Se cfg.isPlaceholder === true, a camada NÃO é instanciada
+       * (evita erros de rede com URLs inválidas) — retorna null.
+       */
+      const makeLayer = (cfg: LayerConfig): EsriFeatureLayer | null => {
+        if (cfg.isPlaceholder) {
+          console.info(
+            `[PID Copilot] Camada "${cfg.title}" aguarda URL real — placeholder ignorado.`
+          );
+          return null;
+        }
 
-        return new GeoJSONLayer({
-          url: blobUrl,
-          title: cfg.title,
+        return new FeatureLayer({
+          url:     cfg.url,
+          title:   cfg.title,
           visible: true,
+          // Sobrescreve o renderer nativo do serviço com nossa paleta visual
           renderer: new SimpleRenderer({
             symbol: new SimpleMarkerSymbol({
-              color: cfg.color,
-              size:  cfg.size,
-              style: "circle",
+              color:   cfg.color,
+              size:    cfg.size,
+              style:   "circle",
               outline: { color: cfg.outlineColor, width: 1.5 },
             }),
           }),
           popupTemplate: new PopupTemplate({
-            title:   `${cfg.emoji} ${cfg.title} — {${cfg.popupField}}`,
-            content: "<b>Tipo:</b> {tipo}",
+            title:   `${cfg.emoji} ${cfg.title}`,
+            // {NomEmpreendimento} é o campo padrão do SIGEL/ANEEL
+            // Caso o serviço use outro campo, o SDK exibe o valor do campo disponível
+            content: [
+              {
+                type: "fields",
+                fieldInfos: [
+                  { fieldName: "NomEmpreendimento", label: "Empreendimento" },
+                  { fieldName: "SigUF",             label: "Estado"         },
+                  { fieldName: "MdaPotenciaInstalada", label: "Potência (MW)" },
+                  { fieldName: "DscFaseUsina",      label: "Fase"           },
+                ],
+              },
+            ],
           }),
         });
       };
 
-      // ─ 3. Cria as camadas estáticas de infraestrutura
-      const staticLayers = STATIC_LAYERS.map(makeLayer);
+      // ─ 3. Cria camadas estáticas (skip placeholders)
+      const staticLayers = STATIC_LAYERS
+        .map(makeLayer)
+        .filter((l): l is EsriFeatureLayer => l !== null);
 
       // ─ 4. Camada reativa Aço Verde (inicia invisível)
-      const acoVerdeBlob    = new Blob([JSON.stringify(ACO_VERDE_GEOJSON)], { type: "application/json" });
-      const acoVerdeBlobUrl = URL.createObjectURL(acoVerdeBlob);
-      const acoVerdeLayer   = new GeoJSONLayer({
-        url: acoVerdeBlobUrl,
-        title: "Aço Verde",
-        visible: false,
-        renderer: new SimpleRenderer({
-          symbol: new SimpleMarkerSymbol({
-            color: [34, 197, 94, 0.95],   // #22C55E
-            size:  "15px",
-            style: "circle",
-            outline: { color: [255, 255, 255, 0.8], width: 2 },
-          }),
-        }),
-        popupTemplate: new PopupTemplate({
-          title:   "🟢 Aço Verde — {name}",
-          content: "<b>Localização:</b> {city}",
-        }),
-      });
-      acoVerdeLayerRef.current = acoVerdeLayer;
+      //      Placeholder por enquanto — mapa reage via goTo() mesmo sem dados reais
+      const acoVerdeLayer: EsriFeatureLayer | null = ACO_VERDE_LAYER.isPlaceholder
+        ? null
+        : makeLayer(ACO_VERDE_LAYER);
 
-      // ─ 5. Basemap CLARO via Carto Positron (tiles públicas, sem auth Esri)
-      //      light-gray-vector requer autenticação ArcGIS Online — não usável
-      //      em ambiente local sem credenciais.
-      const { default: Basemap }      = await import("@arcgis/core/Basemap.js");
-      const { default: WebTileLayer } = await import("@arcgis/core/layers/WebTileLayer.js");
+      acoVerdeRef.current = acoVerdeLayer;
 
+      // ─ 5. Basemap CLARO — Carto Positron (tiles públicas, sem auth Esri)
+      //      light-gray-vector exige credenciais ArcGIS Online — não disponível aqui
       const lightBasemap = new Basemap({
         baseLayers: [
           new WebTileLayer({
-            // Carto Positron — minimalista, cinza claro, sem crédito extra além de © Carto
             urlTemplate: "https://{subDomain}.basemaps.cartocdn.com/light_all/{level}/{col}/{row}.png",
-            subDomains: ["a", "b", "c", "d"],
-            copyright: "© OpenStreetMap contributors, © CARTO",
-            title: "Carto Light",
+            subDomains:  ["a", "b", "c", "d"],
+            copyright:   "© OpenStreetMap contributors, © CARTO",
+            title:       "Carto Positron",
           }),
         ],
         title: "Light Gray",
       });
 
-      // ─ 6. Mapa com basemap claro + todas as camadas
-      const map = new Map({
-        basemap: lightBasemap,
-        layers:  [...staticLayers, acoVerdeLayer],   // Aço Verde por cima
-      });
+      // ─ 6. Mapa + todas as camadas ativas
+      const allLayers: EsriFeatureLayer[] = [
+        ...staticLayers,
+        ...(acoVerdeLayer ? [acoVerdeLayer] : []),
+      ];
 
-      // ─ 6. MapView centrado no Brasil
+      const map = new Map({ basemap: lightBasemap, layers: allLayers });
+
+      // ─ 7. MapView centrado no Brasil
       view = new MapView({
         container: containerRef.current!,
         map,
         center: [-51.9253, -14.235],
-        zoom: 4,
-        ui: { components: ["zoom", "compass"] },
+        zoom:   4,
+        ui:     { components: ["zoom", "compass"] },
         popup: {
           dockEnabled: true,
           dockOptions: { position: "top-right" },
@@ -352,7 +309,7 @@ export default function ArcGISMap({ mapState }: ArcGISMapProps) {
 
       await view.when();
 
-      // ─ 7. Aplica estado inicial (caso chat já tenha sido usado)
+      // ─ 8. Aplica estado inicial (caso o chat já tenha sido usado antes do mapa montar)
       applyMapState(acoVerdeLayer, view, mapState.showGreenSteelLayer);
     };
 
@@ -361,17 +318,17 @@ export default function ArcGISMap({ mapState }: ArcGISMapProps) {
     return () => {
       viewRef.current?.destroy();
       viewRef.current        = null;
-      acoVerdeLayerRef.current = null;
+      acoVerdeRef.current    = null;
       initializedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── Observa mudanças no mapState (chat → mapa) ─────────────── */
+  /* ── Reage a mudanças vindas do chat ─────────────────────────── */
   useEffect(() => {
-    const layer = acoVerdeLayerRef.current;
+    const layer = acoVerdeRef.current;
     const view  = viewRef.current;
-    if (!layer || !view) return;
+    if (!view) return; // view é obrigatória mesmo sem a camada
     applyMapState(layer, view, mapState.showGreenSteelLayer);
   }, [mapState.showGreenSteelLayer]);
 
@@ -384,35 +341,48 @@ export default function ArcGISMap({ mapState }: ArcGISMapProps) {
   );
 }
 
-/* ─── Helper: toggle Aço Verde + animação de câmera ─────────── */
+/* ─── Helper: toggle Aço Verde + animação fly-to ─────────────── */
 function applyMapState(
-  layer: __esri.GeoJSONLayer,
+  layer: EsriFeatureLayer | null,
   view:  __esri.MapView,
   isActive: boolean
 ) {
-  layer.visible = isActive;
+  // Controla visibilidade apenas se a camada real existir
+  if (layer) {
+    layer.visible = isActive;
+  }
 
   if (isActive) {
-    layer
-      .queryExtent()
-      .then((result) => {
-        if (result.extent) {
-          view.goTo(result.extent.expand(1.6), {
-            duration: 1600,
-            easing:   "ease-in-out",
-          });
-        }
-      })
-      .catch(() => {
-        view.goTo(
-          { center: [-43.5, -21.0], zoom: 7 },
-          { duration: 1400, easing: "ease-in-out" }
-        );
-      });
+    if (layer) {
+      // Zoom animado para o extent real dos dados
+      layer
+        .queryExtent()
+        .then((result) => {
+          if (result.extent) {
+            view.goTo(result.extent.expand(1.6), {
+              duration: 1600,
+              easing:   "ease-in-out",
+            });
+          }
+        })
+        .catch(() => fallbackGoTo(view));
+    } else {
+      // Placeholder ativo: apenas faz o fly-to para o Sudeste
+      fallbackGoTo(view);
+    }
   } else {
+    // Volta ao Brasil completo
     view.goTo(
       { center: [-51.9253, -14.235], zoom: 4 },
       { duration: 1200, easing: "ease-out" }
     );
   }
+}
+
+/** Fly-to de fallback — foca no cluster Sudeste/Sul das siderúrgicas */
+function fallbackGoTo(view: __esri.MapView) {
+  view.goTo(
+    { center: [-43.5, -21.0], zoom: 7 },
+    { duration: 1400, easing: "ease-in-out" }
+  );
 }
