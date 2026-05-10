@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 export const metadata: Metadata = {
-  title: "PID Copilot – Plataforma Interativa de Descarbonização",
+  title: "PID — Plataforma Interativa de Descarbonização",
   description:
     "Assistente de IA conversacional para análise geoespacial da transição energética no Brasil.",
 };
@@ -13,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" data-theme="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -22,12 +23,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
         {/* ArcGIS Maps SDK v5 – light theme (assets locais em /public/arcgis-assets) */}
-        <link
-          rel="stylesheet"
-          href="/arcgis-assets/esri/themes/light/main.css"
-        />
+        <link rel="stylesheet" href="/arcgis-assets/esri/themes/light/main.css" />
       </head>
-      <body>{children}</body>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

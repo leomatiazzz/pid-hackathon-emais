@@ -1,7 +1,7 @@
 @import "tailwindcss";
-@import "leaflet/dist/leaflet.css";
 
-/* ─── PID Design Tokens ─────────────────────────────────────── */
+
+/* ─── PID Design Tokens (Dark — padrão) ────────────────────── */
 :root {
   --pid-coral:     #E8581A;
   --pid-coral-lt:  #F4845A;
@@ -17,19 +17,86 @@
   --pid-surface2:  #142840;
   --pid-green:     #22C55E;
   --pid-green-dk:  #16A34A;
+  /* Cor de texto primária e secundária — mudam entre modos */
+  --pid-text:      #E2EDF8;
+  --pid-text-sec:  #C8DDF0;
+  --pid-header-h:  64px;
+}
+
+/* ─── Light Mode Tokens ─────────────────────────────────────── */
+[data-theme="light"] {
+  --pid-navy:      #FFFFFF;
+  --pid-navy-lt:   #F0F5FA;
+  --pid-navy-md:   #BECCCC;
+  --pid-surface:   #F5F8FC;
+  --pid-surface2:  #EAF1F8;
+  --pid-slate:     #03254D;
+  --pid-slate-lt:  #1A4A7A;
+  --pid-muted:     #4A6B8A;
+  --pid-border:    rgba(3,37,77,0.15);
+  --pid-text:      #03254D;
+  --pid-text-sec:  #4A6B8A;
+  /* Coral mantém identidade de marca */
+  --pid-coral:     #FA441A;
+  --pid-coral-lt:  #F87048;
+  --pid-coral-dk:  #D42F06;
+}
+
+/* Light mode: heading/paragraph element overrides
+   Usa seletores de ELEMENTO (não classes Tailwind) para evitar o bug do Turbopack no Windows. 
+   A especificidade [data-theme] + elemento (0,1,1) sobrescreve a classe .text-white (0,1,0). */
+[data-theme="light"] main h1,
+[data-theme="light"] main h2,
+[data-theme="light"] main h3,
+[data-theme="light"] main h4 {
+  color: var(--pid-text);
 }
 
 /* ─── Base ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body, #__next {
+html {
   height: 100%;
+  margin: 0;
+  padding: 0;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100%;
   margin: 0;
   padding: 0;
   font-family: 'Inter', system-ui, sans-serif;
   background: var(--pid-navy);
-  color: #E2EDF8;
+  color: var(--pid-text);
+  overflow-x: hidden;
+  overflow-y: auto;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* Light mode: scrollbar mais clara */
+[data-theme="light"] ::-webkit-scrollbar-track { background: #E8EFF7; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #BECCCC; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #9AAEBC; }
+
+/* Light mode: chip component */
+[data-theme="light"] .chip {
+  background: var(--pid-surface2);
+  border-color: var(--pid-border);
+  color: var(--pid-muted);
+}
+
+/* Container Next.js: não deve travar altura */
+#__next {
+  min-height: 100%;
+}
+
+/* Classe auxiliar usada APENAS na página do Copilot para layout fixed-height */
+.copilot-layout {
+  height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── Scrollbar ─────────────────────────────────────────────── */
@@ -93,31 +160,6 @@ html, body, #__next {
   animation: shimmer 3s linear infinite;
 }
 
-/* ─── Leaflet overrides ─────────────────────────────────────── */
-.leaflet-container {
-  background: #0a1929 !important;
-  font-family: 'Inter', sans-serif;
-}
-.leaflet-control-zoom a {
-  background: var(--pid-navy-lt) !important;
-  color: var(--pid-muted) !important;
-  border-color: var(--pid-border) !important;
-}
-.leaflet-control-zoom a:hover {
-  background: var(--pid-slate) !important;
-  color: #fff !important;
-}
-.leaflet-control-attribution {
-  background: rgba(13,27,42,0.75) !important;
-  color: var(--pid-muted) !important;
-  font-size: 9px !important;
-}
-.leaflet-control-attribution a { color: var(--pid-coral-lt) !important; }
-
-/* Green steel marker pulse */
-.green-steel-marker {
-  animation: mapPulse 2s ease-in-out infinite;
-}
 
 /* ─── Suggestion chips ──────────────────────────────────────── */
 .chip {

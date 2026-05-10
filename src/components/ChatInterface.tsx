@@ -242,7 +242,7 @@ interface ChatInterfaceProps {
 }
 
 /* ─── Component ─────────────────────────────────────────────── */
-export default function ChatInterface({ onMapStateChange }: ChatInterfaceProps) {
+export default function ChatInterface({ onMapStateChange, mapState }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -284,7 +284,7 @@ export default function ChatInterface({ onMapStateChange }: ChatInterfaceProps) 
       if (isHydrogenQuery(query)) {
         // ── Rota: /api/hydrogen ─────────────────────────────────
         const res = await fetch(`${PID_API_BASE}/hydrogen`, {
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(8000),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json() as Record<string, unknown>;
@@ -295,7 +295,7 @@ export default function ChatInterface({ onMapStateChange }: ChatInterfaceProps) 
       } else if (isInfraQuery(query)) {
         // ── Rota: /api/infrastructure ──────────────────────────
         const res = await fetch(`${PID_API_BASE}/infrastructure`, {
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(8000),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json() as Record<string, unknown>;
@@ -311,7 +311,7 @@ export default function ChatInterface({ onMapStateChange }: ChatInterfaceProps) 
           : `${PID_API_BASE}/industries`;
 
         const res = await fetch(url, {
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(8000),
         });
 
         if (res.status === 404) {
@@ -390,7 +390,7 @@ export default function ChatInterface({ onMapStateChange }: ChatInterfaceProps) 
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--pid-green)] border-2"
                   style={{ borderColor: "var(--pid-surface2)" }} />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-semibold text-white"
                style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
               PID Copilot
@@ -398,6 +398,25 @@ export default function ChatInterface({ onMapStateChange }: ChatInterfaceProps) 
             <p className="text-xs" style={{ color: "var(--pid-muted)" }}>
               Assistente de Descarbonização · Online
             </p>
+            {/* ── Status badges ── */}
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {mapState.showGreenSteelLayer && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                      style={{ background: "rgba(34, 197, 94, 0.15)", color: "var(--pid-green)" }}>
+                  🟢 Aço Verde
+                </span>
+              )}
+              {mapState.activeLayer && mapState.activeLayer !== "default" && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                      style={{ background: "rgba(6, 182, 212, 0.15)", color: "#06B6D4" }}>
+                  🔷 {mapState.activeLayer === "eol" && "Eólica"}
+                  {mapState.activeLayer === "uhe" && "Hidrelétrica"}
+                  {mapState.activeLayer === "ute" && "Térmica"}
+                  {mapState.activeLayer === "ufv" && "Solar"}
+                  {mapState.activeLayer === "acoVerde" && "Aço Verde"}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

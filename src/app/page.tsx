@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import {
   BarChart2,
   Map,
@@ -10,13 +13,14 @@ import {
   TrendingUp,
   Sparkles,
   Zap,
+  Recycle,
 } from "lucide-react";
 
 /* ─── Journey card data ──────────────────────────────────────── */
 const JOURNEYS = [
   {
     id: "executive",
-    href: "/dashboard",
+    href: "/infra",
     icon: BarChart2,
     badge: "Visão Executiva",
     title: "Sou Investidor\nou Gestor",
@@ -53,6 +57,26 @@ const JOURNEYS = [
     borderHover: "rgba(61,100,148,0.7)",
     iconBg: "linear-gradient(135deg, var(--pid-slate-lt), var(--pid-slate))",
     cta: "Abrir PID Copilot",
+  },
+  {
+    id: "industrial",
+    href: "/industrias",
+    icon: Recycle,
+    badge: "Análise Industrial",
+    title: "Sou Gestor\nIndustrial",
+    description:
+      "Dashboard por setor e região com Strategic Matching de parceiros circulares, Simulador de Cenários e Insight de Política Pública.",
+    features: [
+      "Strategic Matching por resíduo e raio",
+      "Simulador RSU + Biomassa em tempo real",
+      "Insight de política pública por setor",
+    ],
+    accent: "var(--pid-green)",
+    accentLight: "#86EFAC",
+    gradient: "linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(22,163,74,0.05) 100%)",
+    borderHover: "rgba(34,197,94,0.6)",
+    iconBg: "linear-gradient(135deg, var(--pid-green), var(--pid-green-dk))",
+    cta: "Abrir Análise Industrial",
   },
 ];
 
@@ -102,48 +126,26 @@ export default function HomePage() {
       />
 
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="relative z-10 flex items-center justify-between px-8 pt-6">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg"
-            style={{
-              background: "var(--pid-coral)",
-              boxShadow: "0 0 20px rgba(232,88,26,0.4)",
-            }}
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <div>
-            <span
-              className="font-bold text-base tracking-wide text-white"
-              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-            >
-              plataforma interativa de descarbonização
-            </span>
-          </div>
-        </div>
+      <header
+        className="relative z-10 flex items-center justify-between px-8"
+        style={{ height: "var(--pid-header-h, 64px)" }}
+      >
+        <a href="https://emaisenergia.org/" target="_blank" rel="noopener noreferrer">
+          <Logo height={44} />
+        </a>
 
-        <div className="flex items-center gap-3 text-xs" style={{ color: "var(--pid-muted)" }}>
+        <div className="flex items-center gap-3">
           <span
-            className="px-2.5 py-1 rounded-lg"
+            className="px-2.5 py-1 rounded-lg text-xs"
             style={{
               background: "rgba(232,88,26,0.12)",
               border: "1px solid rgba(232,88,26,0.25)",
               color: "var(--pid-coral-lt)",
             }}
           >
-            Versão 3.0
+            MVP Hackathon
           </span>
-          <span
-            className="px-2 py-0.5 rounded font-medium"
-            style={{ background: "var(--pid-surface2)", color: "var(--pid-muted)" }}
-          >
-            PT
-          </span>
-          <span style={{ color: "var(--pid-border)" }}>|</span>
-          <span>EN</span>
+          <ThemeToggle size="md" />
         </div>
       </header>
 
@@ -321,7 +323,7 @@ export default function HomePage() {
         </span>
         <div className="flex items-center gap-1.5">
           <Layers size={11} />
-          <span>Dados: EPE · ONS · ANEEL · MME · 2020-09-11</span>
+          <span>Dados: EPE · ONS · ANEEL · MME · Mai 2026</span>
         </div>
       </footer>
     </div>
