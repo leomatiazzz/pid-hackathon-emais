@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -131,7 +131,7 @@ export default function HomePage() {
         style={{ height: "var(--pid-header-h, 64px)" }}
       >
         <a href="https://emaisenergia.org/" target="_blank" rel="noopener noreferrer">
-          <Logo height={44} />
+          <Logo height={64} />
         </a>
 
         <div className="flex items-center gap-3">
@@ -166,7 +166,7 @@ export default function HomePage() {
         </div>
 
         <h1
-          className="text-4xl font-bold text-white leading-tight max-w-2xl"
+          className="text-4xl font-bold pid-txt leading-tight max-w-2xl"
           style={{ fontFamily: "'Space Grotesk', sans-serif" }}
         >
           Otimize suas decisões na{" "}
@@ -252,12 +252,12 @@ export default function HomePage() {
                   boxShadow: isHovered ? `0 8px 25px color-mix(in srgb, ${j.accent} 35%, transparent)` : "none",
                 }}
               >
-                <Icon size={24} className="text-white" />
+                <Icon size={24} className="pid-txt" />
               </div>
 
               {/* Title */}
               <h2
-                className="text-2xl font-bold text-white mb-3 whitespace-pre-line leading-tight"
+                className="text-2xl font-bold pid-txt mb-3 whitespace-pre-line leading-tight"
                 style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               >
                 {j.title}
@@ -271,7 +271,7 @@ export default function HomePage() {
               {/* Feature list */}
               <ul className="space-y-2 mb-8 flex-1">
                 {j.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-xs" style={{ color: "#C8DDF0" }}>
+                  <li key={f} className="flex items-center gap-2.5 text-xs" style={{ color: "var(--pid-text-sec)" }}>
                     <span
                       className="flex-none w-4 h-4 rounded-full flex items-center justify-center"
                       style={{

@@ -20,7 +20,8 @@
   /* Cor de texto primária e secundária — mudam entre modos */
   --pid-text:      #E2EDF8;
   --pid-text-sec:  #C8DDF0;
-  --pid-header-h:  64px;
+  --pid-header-h:  80px;
+  --pid-header-bg: rgba(13,27,42,0.97);
 }
 
 /* ─── Light Mode Tokens ─────────────────────────────────────── */
@@ -36,6 +37,8 @@
   --pid-border:    rgba(3,37,77,0.15);
   --pid-text:      #03254D;
   --pid-text-sec:  #4A6B8A;
+  /* Header em light-mode: branco-azulado da paleta oficial */
+  --pid-header-bg: #BECCCC;
   /* Coral mantém identidade de marca */
   --pid-coral:     #FA441A;
   --pid-coral-lt:  #F87048;
@@ -78,6 +81,12 @@ body {
 [data-theme="light"] ::-webkit-scrollbar-track { background: #E8EFF7; }
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: #BECCCC; }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #9AAEBC; }
+
+/* Classe utilitária para texto invertível dark/light.
+   Substitui text-white em áreas de conteúdo (cards, KPIs, rótulos).
+   NÃO usa !important nem referencia classes Tailwind — seguro no Turbopack/Windows. */
+.pid-txt      { color: var(--pid-text); }
+.pid-txt-sec  { color: var(--pid-text-sec); }
 
 /* Light mode: chip component */
 [data-theme="light"] .chip {

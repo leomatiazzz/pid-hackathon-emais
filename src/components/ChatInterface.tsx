@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect } from "react";
 import {
@@ -226,7 +226,7 @@ function renderBold(text: string) {
   const parts = text.split(/\*\*(.*?)\*\*/g);
   return parts.map((part, i) =>
     i % 2 === 1 ? (
-      <strong key={i} style={{ color: "white", fontWeight: 600 }}>
+      <strong key={i} style={{ color: "var(--pid-text)", fontWeight: 600 }}>
         {part}
       </strong>
     ) : (
@@ -391,7 +391,7 @@ export default function ChatInterface({ onMapStateChange, mapState }: ChatInterf
                   style={{ borderColor: "var(--pid-surface2)" }} />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-white"
+            <p className="text-sm font-semibold pid-txt"
                style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
               PID Copilot
             </p>
@@ -453,8 +453,8 @@ export default function ChatInterface({ onMapStateChange, mapState }: ChatInterf
                          }
                        : {
                            background: "var(--pid-navy-lt)",
-                           color: "#C8DDF0",
-                           border: "1px solid var(--pid-border)",
+                           color: "var(--pid-text-sec)",
+                            border: "1px solid var(--pid-border)",
                            borderRadius: "4px 18px 18px 18px",
                          }
                    }>

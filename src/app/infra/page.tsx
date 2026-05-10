@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -273,14 +273,14 @@ export default function DashboardPage() {
   return (
     <div
       className="min-h-screen w-full"
-      style={{ background: "var(--pid-navy)", color: "#E2EDF8" }}
+      style={{ background: "var(--pid-navy)", color: "var(--pid-text)" }}
     >
       {/* ── Header ─────────────────────────────────────────────── */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-8"
         style={{
           height:       "var(--pid-header-h, 64px)",
-          background:   "rgba(13,27,42,0.96)",
+          background:   "var(--pid-header-bg)",
           borderBottom: "1px solid var(--pid-border)",
           backdropFilter: "blur(12px)",
         }}
@@ -296,7 +296,7 @@ export default function DashboardPage() {
           </Link>
           <span style={{ color: "var(--pid-border)" }}>|</span>
           <a href="https://emaisenergia.org/" target="_blank" rel="noopener noreferrer">
-            <Logo height={32} />
+            <Logo height={64} />
           </a>
           <span
             className="text-xs px-1.5 py-0.5 rounded"
@@ -329,7 +329,7 @@ export default function DashboardPage() {
         {/* Título */}
         <div>
           <h1
-            className="text-2xl font-bold text-white"
+            className="text-2xl font-bold pid-txt"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}
           >
             Panorama Executivo
@@ -393,7 +393,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2 mb-5">
               <BarChart2 size={16} style={{ color: "var(--pid-coral)" }} />
               <h2
-                className="text-sm font-semibold text-white"
+                className="text-sm font-semibold pid-txt"
                 style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               >
                 Consumo (MWh) por Setor Industrial
@@ -404,7 +404,7 @@ export default function DashboardPage() {
                 <div key={s.label}>
                   <div className="flex justify-between text-xs mb-1" style={{ color: "var(--pid-muted)" }}>
                     <span>{s.label}</span>
-                    <span style={{ color: "white" }}>{s.value}</span>
+                    <span style={{ color: "var(--pid-text)" }}>{s.value}</span>
                   </div>
                   <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--pid-navy-md)" }}>
                     <div
@@ -426,7 +426,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2 mb-4">
                 <Leaf size={16} style={{ color: "var(--pid-green)" }} />
                 <h2
-                  className="text-sm font-semibold text-white"
+                  className="text-sm font-semibold pid-txt"
                   style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                 >
                   Oportunidades Identificadas
@@ -445,7 +445,7 @@ export default function DashboardPage() {
                     >
                       {item.tag}
                     </span>
-                    <p className="text-xs leading-relaxed" style={{ color: "#C8DDF0" }}>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>
                       {item.text}
                     </p>
                   </div>
@@ -475,7 +475,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <Wind size={16} style={{ color: "#7DD3FC" }} />
               <h2
-                className="text-sm font-semibold text-white"
+                className="text-sm font-semibold pid-txt"
                 style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               >
                 Scorecard de Transição Energética
@@ -512,7 +512,7 @@ export default function DashboardPage() {
             style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}
           >
             <Droplets size={14} style={{ color: "var(--pid-green)", marginTop: 1 }} />
-            <p className="text-xs leading-relaxed" style={{ color: "#C8DDF0" }}>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>
               <strong style={{ color: "var(--pid-green)" }}>84% da matriz elétrica é renovável</strong> — o Brasil está entre os 5 países com maior participação de fontes limpas no mundo. A PID identifica os gargalos restantes e aponta onde investir.
             </p>
           </div>
@@ -527,7 +527,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Recycle size={16} style={{ color: "var(--pid-green)" }} />
-              <h2 className="text-sm font-semibold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <h2 className="text-sm font-semibold pid-txt" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 Resíduos Industriais &amp; Circularidade
               </h2>
             </div>
@@ -542,7 +542,7 @@ export default function DashboardPage() {
             style={{ background: "rgba(232,88,26,0.08)", border: "1px solid rgba(232,88,26,0.3)" }}
           >
             <AlertTriangle size={14} style={{ color: "var(--pid-coral)", marginTop: 1, flexShrink: 0 }} />
-            <p className="text-xs leading-relaxed" style={{ color: "#C8DDF0" }}>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>
               <strong style={{ color: "var(--pid-coral-lt)" }}>Alerta CBAM:</strong>{" "}
               A partir de 2026, exportações para a UE de aço, alumínio e cimento estarão sujeitas ao Carbon Border
               Adjustment Mechanism. Indústrias com alta circularidade reduzem a base de cálculo e economizam até{" "}
@@ -563,7 +563,7 @@ export default function DashboardPage() {
                   <div key={r.name}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs font-medium truncate" style={{ color: "white" }}>{r.name}</span>
+                        <span className="text-xs font-medium truncate" style={{ color: "var(--pid-text)" }}>{r.name}</span>
                         <span
                           className="text-[10px] px-1.5 py-0.5 rounded flex-none"
                           style={{ background: "var(--pid-navy-md)", color: "var(--pid-muted)" }}
@@ -606,7 +606,7 @@ export default function DashboardPage() {
                     >
                       {op.tag}
                     </span>
-                    <p className="text-xs font-semibold mt-2 mb-0.5 text-white">{op.title}</p>
+                    <p className="text-xs font-semibold mt-2 mb-0.5 pid-txt">{op.title}</p>
                     <p className="text-[10px] mb-2" style={{ color: "var(--pid-muted)" }}>{op.desc}</p>
                     <p className="text-base font-bold" style={{ color: op.color, fontFamily: "'Space Grotesk', sans-serif" }}>
                       {op.value}
@@ -666,9 +666,9 @@ export default function DashboardPage() {
                     return (
                       <tr key={i} style={{ borderBottom: "1px solid rgba(30,58,86,0.5)" }}>
                         <td className="py-2.5 pr-4 font-medium" style={{ color: "var(--pid-coral-lt)" }}>{row.from}</td>
-                        <td className="py-2.5 pr-4" style={{ color: "#C8DDF0" }}>{row.to}</td>
+                        <td className="py-2.5 pr-4" style={{ color: "var(--pid-text-sec)" }}>{row.to}</td>
                         <td className="py-2.5 pr-4" style={{ color: "var(--pid-muted)" }}>{row.material}</td>
-                        <td className="py-2.5 pr-4 font-mono" style={{ color: "white" }}>{row.volume}</td>
+                        <td className="py-2.5 pr-4 font-mono" style={{ color: "var(--pid-text)" }}>{row.volume}</td>
                         <td className="py-2.5">
                           <span
                             className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
@@ -696,7 +696,7 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <FileQuestion size={16} style={{ color: "var(--pid-coral)" }} />
-                <h2 className="text-sm font-semibold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                <h2 className="text-sm font-semibold pid-txt" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                   Dados Faltantes como Oportunidade de Política Pública
                 </h2>
               </div>
@@ -726,7 +726,7 @@ export default function DashboardPage() {
             style={{ background: "rgba(125,211,252,0.06)", border: "1px solid rgba(125,211,252,0.2)" }}
           >
             <Building2 size={14} style={{ color: "#7DD3FC", marginTop: 1, flexShrink: 0 }} />
-            <p className="text-xs leading-relaxed" style={{ color: "#C8DDF0" }}>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>
               O Brasil possui <strong style={{ color: "#7DD3FC" }}>84% de matriz renovável</strong>, mas falta rastreabilidade para
               monetizar esse ativo. Cada lacuna de dado listada abaixo representa uma janela de política pública que, se resolvida,
               pode desbloquear <strong style={{ color: "#7DD3FC" }}>mais de R$ 27 bi/ano</strong> em créditos, eficiência e acesso a mercados internacionais.
@@ -748,7 +748,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2.5">
                       <span className="text-xl">{gap.icon}</span>
                       <div>
-                        <p className="text-sm font-semibold" style={{ color: "white", fontFamily: "'Space Grotesk', sans-serif" }}>
+                        <p className="text-sm font-semibold" style={{ color: "var(--pid-text)", fontFamily: "'Space Grotesk', sans-serif" }}>
                           {gap.title}
                         </p>
                         <span
@@ -764,18 +764,18 @@ export default function DashboardPage() {
                   {/* Missing data */}
                   <div className="rounded-lg px-3 py-2" style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(122,155,191,0.3)" }}>
                     <p className="text-[10px] font-semibold mb-0.5" style={{ color: "var(--pid-muted)" }}>O QUE FALTA</p>
-                    <p className="text-xs" style={{ color: "#C8DDF0" }}>{gap.missing}</p>
+                    <p className="text-xs" style={{ color: "var(--pid-text-sec)" }}>{gap.missing}</p>
                   </div>
 
                   {/* Impact + Action in two mini columns */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <p className="text-[10px] font-semibold mb-0.5" style={{ color: "var(--pid-coral-lt)" }}>IMPACTO SEM O DADO</p>
-                      <p className="text-[11px] leading-relaxed" style={{ color: "#C8DDF0" }}>{gap.impact}</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>{gap.impact}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold mb-0.5" style={{ color: urg.color }}>AÇÃO NECESSÁRIA</p>
-                      <p className="text-[11px] leading-relaxed" style={{ color: "#C8DDF0" }}>{gap.action}</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>{gap.action}</p>
                     </div>
                   </div>
 
@@ -806,7 +806,7 @@ export default function DashboardPage() {
             style={{ background: "rgba(232,88,26,0.08)", border: "1px solid rgba(232,88,26,0.25)" }}
           >
             <div>
-              <p className="text-sm font-semibold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <p className="text-sm font-semibold pid-txt" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 A PID pode ser o repositório nacional dessas lacunas
               </p>
               <p className="text-xs mt-0.5" style={{ color: "var(--pid-muted)" }}>

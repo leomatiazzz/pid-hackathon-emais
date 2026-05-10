@@ -59,13 +59,13 @@ export default function CopilotPage() {
     <main className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--pid-navy)]">
 
       {/* ══════════════════════════════════════════════════════════
-          HEADER — fixo no topo (h-16 = 64px)
+          HEADER — fixo no topo (var(--pid-header-h) = 80px)
           ══════════════════════════════════════════════════════════ */}
       <header
         className="flex-none flex items-center justify-between px-6 z-50"
         style={{
-          height: "var(--pid-header-h, 64px)",
-          background: "rgba(13,27,42,0.97)",
+          height: "var(--pid-header-h, 80px)",
+          background: "var(--pid-header-bg)",
           borderBottom: "1px solid var(--pid-border)",
           backdropFilter: "blur(12px)",
         }}
@@ -73,7 +73,7 @@ export default function CopilotPage() {
         {/* Logo — clica para emaisenergia.org */}
         <div className="flex items-center gap-3">
           <a href="https://emaisenergia.org/" target="_blank" rel="noopener noreferrer">
-            <Logo height={38} />
+            <Logo height={64} />
           </a>
           <span
             className="text-xs px-1.5 py-0.5 rounded"
@@ -90,12 +90,12 @@ export default function CopilotPage() {
         {/* Nav links */}
         <nav
           className="flex items-center gap-5 text-xs"
-          style={{ color: "var(--pid-muted)" }}
+          style={{ color: "var(--pid-text)" }}
         >
-          <Link href="/" className="hover:text-[var(--pid-text)] transition-colors">Início</Link>
-          <Link href="/infra" className="hover:text-[var(--pid-text)] transition-colors">Infraestrutura</Link>
-          <Link href="/industrias" className="hover:text-[var(--pid-text)] transition-colors">Indústrias</Link>
-          <span className="hover:text-[var(--pid-text)] cursor-pointer transition-colors">Saiba mais</span>
+          <Link href="/" className="hover:opacity-70 transition-opacity">Início</Link>
+          <Link href="/infra" className="hover:opacity-70 transition-opacity">Infraestrutura</Link>
+          <Link href="/industrias" className="hover:opacity-70 transition-opacity">Indústrias</Link>
+          <span className="hover:opacity-70 cursor-pointer transition-opacity">Saiba mais</span>
 
           {/* Botão toggle Copilot com ícone real */}
           <button

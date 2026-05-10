@@ -1,4 +1,4 @@
-// ═════════════════════════════════════════════════════════════════════════════
+﻿// ═════════════════════════════════════════════════════════════════════════════
 //  PID.Api — Program.cs
 //  Plataforma Interativa de Descarbonização · Backend Motor de Dados
 //  .NET 9 · ASP.NET Core Minimal API
@@ -135,6 +135,30 @@ var industries = new[]
     // (representação: os demais 306 registros seguem padrão idêntico)
 };
 
+// ── Dados base por setor (espelham o front-end) para cálculos do simulador ──
+var SectorBase = new Dictionary<string, (double co2, double eco, int circ)>(
+    StringComparer.OrdinalIgnoreCase)
+{
+    ["Cimenteira"]   = (12, 2.4, 67),
+    ["Aço"]         = (18, 5.1, 78),
+    ["Alumínio"]    = ( 9, 1.8, 54),
+    ["Química"]      = ( 7, 1.2, 42),
+    ["Fertilizantes"]= ( 5, 0.9, 38),
+    ["Alimentícia"]  = ( 4, 0.7, 31),
+};
+
+// ── Multiplicadores regionais ─────────────────────────────────────────────
+var RegionMult = new Dictionary<string, (double co2, double eco)>(
+    StringComparer.OrdinalIgnoreCase)
+{
+    ["Nacional"]      = (1.00, 1.00),
+    ["Norte"]         = (1.05, 0.85),
+    ["Nordeste"]      = (1.18, 1.22),
+    ["Centro-Oeste"]  = (0.98, 0.90),
+    ["Sudeste"]       = (1.00, 1.00),
+    ["Sul"]           = (0.94, 1.12),
+};
+
 // ── Regras de negócio para o score de viabilidade ERP ─────────────────────
 static (int Score, string Recomendacao) CalculateViabilityScore(string region, string sector)
 {
@@ -176,6 +200,21 @@ static (int Score, string Recomendacao) CalculateViabilityScore(string region, s
             32,
             "Uso de combustíveis alternativos (CDR) pode reduzir emissões em até 40%. " +
             "Carbono capturado (CCS) é a rota prioritária para descarbonização profunda."
+        ),
+        "aço" => (
+            44,
+            "Siderurgia com alto potencial de circularidade. Adotação de H₂ Verde " +
+            "na redução direta de ferro pode eliminar até 95% das emissões do processo."
+        ),
+        "fertilizantes" => (
+            28,
+            "Descarbonização via amônia verde (N-H₂). " +
+            "Fosfogesso gerado pode ser aproveitado como insumo agrícola (circular)."
+        ),
+        "alimentícia" => (
+            24,
+            "Potencial de biogás da agroindústria subutilizado. " +
+            "Eficiência hídrica e energética são alavancas imediatas de decarbonização."
         ),
         _ => (
             20,
@@ -362,12 +401,95 @@ app.MapGet("/health", () => Results.Ok(new
         "GET  /api/infrastructure",
         "GET  /api/hydrogen",
         "GET  /api/industries[?sector=]",
-        "POST /api/erp/viability"
+        "POST /api/erp/viability",
+        "POST /api/industries/simulate"
     }
 }))
 .WithName("HealthCheck")
 .WithSummary("Health Check da API")
-.ExcludeFromDescription();   // Não aparece no Swagger (endpoint interno)
+.ExcludeFromDescription();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+api.MapPost("/industries/simulate", (SimulateRequest req) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Sector))
+        return Results.BadRequest(new { Success = false, Message = "Campo 'sector' é obrigatório." });
+
+    if (string.IsNullOrWhiteSpace(req.Region))
+        return Results.BadRequest(new { Success = false, Message = "Campo 'region' é obrigatório." });
+
+    // Busca dados base do setor (com fallback)
+    var (baseCo2, baseEco, _) = SectorBase.TryGetValue(req.Sector, out var b)
+        ? b : (10.0, 1.5, 50);
+
+    // Multiplicador regional
+    var (co2Mult, ecoMult) = RegionMult.TryGetValue(req.Region, out var m)
+        ? m : (1.0, 1.0);
+
+    // Fórmula de simulação: igual ao front-end
+    double co2Result  = Math.Round(baseCo2 * co2Mult * (1.0 + (req.RsuPct + req.BiomassPct) / 200.0), 1);
+    double ecoResult  = Math.Round(baseEco * ecoMult * (1.0 + (req.RsuPct + req.BiomassPct) / 150.0), 2);
+
+    var (score, recommendation) = CalculateViabilityScore(req.Region, req.Sector);
+
+    // Boost do score pelo uso de RSU + Biomassa
+    int sliderBonus = (int)Math.Round((req.RsuPct + req.BiomassPct) / 10.0);
+    int finalScore  = Math.Min(score + sliderBonus, 100);
+
+    string status = finalScore >= 80 ? "Aprovado" :
+                    finalScore >= 60 ? "Aprovado com Ressalvas" :
+                    finalScore >= 40 ? "Em Análise" : "Reprovado";
+
+    string statusColor = finalScore >= 80 ? "green" :
+                         finalScore >= 60 ? "yellow" : "red";
+
+    string reportId = Guid.NewGuid().ToString("N")[..10].ToUpper();
+
+    return Results.Ok(new
+    {
+        Success          = true,
+        Timestamp        = DateTime.UtcNow,
+        ReportId         = reportId,
+        Input = new
+        {
+            req.Sector, req.Region, req.RsuPct, req.BiomassPct
+        },
+        Result = new
+        {
+            Co2ReductionPct    = co2Result,
+            CircularSavingsM   = ecoResult,
+            ViabilityScore     = finalScore,
+            ScoreLabel         = $"{finalScore}/100",
+            ErpStatus          = status,
+            ErpStatusColor     = statusColor,
+            Recommendation     = recommendation,
+            NextSteps          = finalScore >= 60
+                ? new[]
+                  {
+                      "Emitir relatório de circularidade para o ERP (SAP CO / TOTVS Backoffice)",
+                      "Solicitar análise de CAPEX ao BNDES Finem (linha descarbonização)",
+                      "Ativar moódulo de rastreabilidade de resíduos na PID"
+                  }
+                : new[]
+                  {
+                      "Aumentar o percentual de RSU e Biomassa nos filtros",
+                      "Consultar o Atlas de Potencial Energético do MME",
+                      "Agendar diagnóstico técnico com o Hub de Descarbonização regional"
+                  },
+            ExportMessage = $"Protocolo ERP #{reportId} gerado em {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC. " +
+                            $"Integrável via SAP BAPI / TOTVS REST / Oracle ERP Cloud."
+        }
+    });
+})
+.WithName("PostIndustriesSimulate")
+.WithSummary("Simulador de Cenários de Descarbonização")
+.WithDescription(
+    "Recebe setor, região e percentuais de RSU e Biomassa. " +
+    "Retorna projeções de redução de CO₂ e economia circular, " +
+    "score ERP de viabilidade e protocolo para integração SAP/TOTVS."
+)
+.Produces<object>(StatusCodes.Status200OK)
+.Produces<object>(StatusCodes.Status400BadRequest);
 
 app.Run();
 
@@ -378,10 +500,13 @@ app.Run();
 /// <summary>
 /// Payload de entrada para o endpoint de viabilidade ERP.
 /// </summary>
-/// <param name="Region">
-/// Região geográfica do investimento (ex: "Sudeste", "Nordeste", "Norte", "Sul", "Centro-Oeste").
-/// </param>
-/// <param name="InvestmentSector">
-/// Setor de investimento (ex: "Aço Verde", "Alumínio", "Hidrogênio", "Química", "Cimenteira").
-/// </param>
 record ViabilityRequest(string Region, string InvestmentSector);
+
+/// <summary>
+/// Payload de entrada para o simulador de cenários de descarbonização.
+/// </summary>
+/// <param name="Sector">Setor industrial (ex: "Cimenteira", "Aço", "Alumínio").</param>
+/// <param name="Region">Região geográfica (ex: "Sudeste", "Nordeste").</param>
+/// <param name="RsuPct">Percentual de RSU utilizado na simulação (0-100).</param>
+/// <param name="BiomassPct">Percentual de Biomassa utilizado na simulação (0-100).</param>
+record SimulateRequest(string Sector, string Region, double RsuPct, double BiomassPct);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Logo from "@/components/Logo";
@@ -14,6 +14,30 @@ import {
 type Setor = "Cimenteira" | "Aço" | "Alumínio" | "Química" | "Fertilizantes" | "Alimentícia";
 type Regiao = "Nacional" | "Norte" | "Nordeste" | "Centro-Oeste" | "Sudeste" | "Sul";
 type CbamLevel = "Baixa" | "Média" | "Alta";
+
+/* ─── API Response types ─────────────────────────────────────────── */
+interface ErpResult {
+  requestId: string;
+  score: number;
+  scoreLabel: string;
+  status: string;
+  recommendation: string;
+  nextSteps: string[];
+  totalIndustries: number;
+  totalConsumoFormatted: string;
+}
+
+interface SimResult {
+  reportId: string;
+  co2ReductionPct: number;
+  circularSavingsM: number;
+  viabilityScore: number;
+  erpStatus: string;
+  erpStatusColor: string;
+  recommendation: string;
+  nextSteps: string[];
+  exportMessage: string;
+}
 
 interface SetorData {
   co2Reduction: number;       // %
@@ -187,7 +211,7 @@ function Select<T extends string>({
           className="w-full appearance-none px-4 pr-9 py-2.5 rounded-xl text-sm font-medium"
           style={{
             background: "var(--pid-surface2)", border: "1.5px solid var(--pid-border)",
-            color: "white", outline: "none", cursor: "pointer",
+            color: "var(--pid-text)", outline: "none", cursor: "pointer",
           }}
           onFocus={(e) => (e.target.style.borderColor = "var(--pid-coral)")}
           onBlur={(e) => (e.target.style.borderColor = "var(--pid-border)")}
@@ -252,6 +276,89 @@ export default function IndustriasPage() {
   const [analyzed, setAnalyzed] = useState(true);
   const [rsu, setRsu] = useState(40);
   const [biomassa, setBiomassa] = useState(25);
+  // ── ERP / API states ──────────────────────────────────────────────
+  const [analyzing, setAnalyzing] = useState(false);
+  const [erpResult, setErpResult] = useState<ErpResult | null>(null);
+  const [simulating, setSimulating] = useState(false);
+  const [simResult, setSimResult] = useState<SimResult | null>(null);
+  const [showSimModal, setShowSimModal] = useState(false);
+
+  // ── API handlers ──────────────────────────────────────────────────
+  const handleAnalyze = useCallback(async () => {
+    setAnalyzing(true);
+    setErpResult(null);
+    // Mapeia "Nacional" para "Sudeste" (região padrão da API)
+    const apiRegion = regiao === "Nacional" ? "Sudeste" : regiao;
+    try {
+      const [indRes, erpRes] = await Promise.all([
+        fetch(`http://localhost:5280/api/industries?sector=${encodeURIComponent(setor)}`),
+        fetch("http://localhost:5280/api/erp/viability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ Region: apiRegion, InvestmentSector: setor }),
+        }),
+      ]);
+      const ind  = await indRes.json() as Record<string, unknown>;
+      const erp  = await erpRes.json() as Record<string, unknown>;
+      const r    = erp.Result as Record<string, unknown> ?? {};
+      setErpResult({
+        requestId:            String(erp.RequestId ?? ""),
+        score:                Number(r.Score ?? 0),
+        scoreLabel:           String(r.ScoreLabel ?? "0/100"),
+        status:               String(r.Status ?? ""),
+        recommendation:       String(r.Recommendation ?? ""),
+        nextSteps:            (r.NextSteps as string[]) ?? [],
+        totalIndustries:      Number(ind.TotalIndustriesReal ?? 0),
+        totalConsumoFormatted:String(ind.TotalConsumoFormatted ?? ""),
+      });
+    } catch {
+      // API indisponível — apenas mostra os dados locais
+    } finally {
+      setAnalyzed(true);
+      setAnalyzing(false);
+    }
+  }, [setor, regiao]);
+
+  const handleSimulate = useCallback(async () => {
+    setSimulating(true);
+    const apiRegion = regiao === "Nacional" ? "Sudeste" : regiao;
+    try {
+      const res = await fetch("http://localhost:5280/api/industries/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ Sector: setor, Region: apiRegion, RsuPct: rsu, BiomassPct: biomassa }),
+      });
+      const data = await res.json() as Record<string, unknown>;
+      const r    = data.Result as Record<string, unknown> ?? {};
+      setSimResult({
+        reportId:          String(data.ReportId ?? ""),
+        co2ReductionPct:   Number(r.Co2ReductionPct ?? 0),
+        circularSavingsM:  Number(r.CircularSavingsM ?? 0),
+        viabilityScore:    Number(r.ViabilityScore ?? 0),
+        erpStatus:         String(r.ErpStatus ?? ""),
+        erpStatusColor:    String(r.ErpStatusColor ?? "yellow"),
+        recommendation:    String(r.Recommendation ?? ""),
+        nextSteps:         (r.NextSteps as string[]) ?? [],
+        exportMessage:     String(r.ExportMessage ?? ""),
+      });
+    } catch {
+      // Fallback: usa valores locais
+      setSimResult({
+        reportId: "OFFLINE",
+        co2ReductionPct: simCo2,
+        circularSavingsM: parseFloat(simEco),
+        viabilityScore: 65,
+        erpStatus: "Aprovado com Ressalvas",
+        erpStatusColor: "yellow",
+        recommendation: "API indisponível. Verifique se o backend está rodando.",
+        nextSteps: ["Iniciar backend: dotnet run no diretório pid-backend"],
+        exportMessage: "Protocolo gerado em modo offline.",
+      });
+    } finally {
+      setSimulating(false);
+      setShowSimModal(true);
+    }
+  }, [setor, regiao, rsu, biomassa]);
 
   // Dynamic values — base × regional multiplier
   const base = SETOR_CONFIG[setor];
@@ -275,13 +382,14 @@ export default function IndustriasPage() {
   const barMax = Math.max(...sectorBars.map((b) => b.val));
 
   return (
+    <>
     <div style={{ background: "var(--pid-navy)", color: "var(--pid-text)", minHeight: "100vh" }}>
       {/* Header */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-6"
         style={{
           height: "var(--pid-header-h, 64px)",
-          background: "rgba(13,27,42,0.97)",
+          background: "var(--pid-header-bg)",
           borderBottom: "1px solid var(--pid-border)",
           backdropFilter: "blur(12px)",
         }}
@@ -296,7 +404,7 @@ export default function IndustriasPage() {
           </Link>
           <span style={{ color: "var(--pid-border)" }}>|</span>
           <a href="https://emaisenergia.org/" target="_blank" rel="noopener noreferrer">
-            <Logo height={32} />
+            <Logo height={64} />
           </a>
           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(232,88,26,0.2)", color: "var(--pid-coral-lt)" }}>
             INDÚSTRIAS
@@ -325,7 +433,7 @@ export default function IndustriasPage() {
             <p className="text-xs font-semibold tracking-widest mb-1" style={{ color: "var(--pid-coral)", letterSpacing: "0.1em" }}>
               PLATAFORMA INDUSTRIAL DE DESCARBONIZAÇÃO
             </p>
-            <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            <h1 className="text-2xl font-bold pid-txt" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
               Dashboard — Indústria {setor}{" "}
               <span className="font-normal text-lg" style={{ color: "var(--pid-muted)" }}>| {regiao}</span>
             </h1>
@@ -347,11 +455,19 @@ export default function IndustriasPage() {
               onChange={(v) => { setRegiao(v); setAnalyzed(true); }}
             />
             <button
-              onClick={() => setAnalyzed(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 flex-none"
+              onClick={handleAnalyze}
+              disabled={analyzing}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 flex-none disabled:opacity-60"
               style={{ background: "linear-gradient(135deg, var(--pid-coral), var(--pid-coral-dk))", color: "white" }}
             >
-              Atualizar análise <ChevronRight size={14} />
+              {analyzing ? (
+                <>
+                  <span className="inline-block w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  Analisando...
+                </>
+              ) : (
+                <>Atualizar análise <ChevronRight size={14} /></>
+              )}
             </button>
           </div>
         </div>
@@ -370,7 +486,7 @@ export default function IndustriasPage() {
                   REDUÇÃO PROJETADA (CO₂)
                 </span>
               </div>
-              <p className="text-4xl font-bold" style={{ color: "white", fontFamily: "'Space Grotesk', sans-serif" }}>
+              <p className="text-4xl font-bold" style={{ color: "var(--pid-text)", fontFamily: "'Space Grotesk', sans-serif" }}>
                 {dynCo2}%
               </p>
               <p className="text-xs mt-1" style={{ color: "var(--pid-coral-lt)" }}>↘ vs. meta anual · {mult.label}</p>
@@ -387,7 +503,7 @@ export default function IndustriasPage() {
                   ECONOMIA CIRCULAR ESTIMADA
                 </span>
               </div>
-              <p className="text-4xl font-bold" style={{ color: "white", fontFamily: "'Space Grotesk', sans-serif" }}>
+              <p className="text-4xl font-bold" style={{ color: "var(--pid-text)", fontFamily: "'Space Grotesk', sans-serif" }}>
                 R$ {dynEco}M
               </p>
               <p className="text-xs mt-1" style={{ color: "var(--pid-green)" }}>↗ {regiao} · pot. circular</p>
@@ -415,6 +531,80 @@ export default function IndustriasPage() {
           </div>
         )}
 
+        {/* ── ERP Viability Panel (shown after real API call) ─────────── */}
+        {erpResult && (
+          <div
+            className="rounded-2xl p-5 space-y-4 fade-in-up"
+            style={{ background: "var(--pid-surface2)", border: "1px solid var(--pid-border)" }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <Zap size={15} style={{ color: "var(--pid-coral)" }} />
+                <p className="text-sm font-semibold pid-txt" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  Score ERP de Viabilidade
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                  style={{
+                    background: erpResult.score >= 80 ? "rgba(34,197,94,0.15)" :
+                                erpResult.score >= 60 ? "rgba(249,199,132,0.15)" : "rgba(232,88,26,0.15)",
+                    color:      erpResult.score >= 80 ? "var(--pid-green)" :
+                                erpResult.score >= 60 ? "#F9C784" : "var(--pid-coral-lt)",
+                    border: `1px solid ${
+                      erpResult.score >= 80 ? "rgba(34,197,94,0.4)" :
+                      erpResult.score >= 60 ? "rgba(249,199,132,0.4)" : "rgba(232,88,26,0.4)"
+                    }`
+                  }}
+                >
+                  {erpResult.status}
+                </span>
+                <span className="text-xs" style={{ color: "var(--pid-muted)" }}>#{erpResult.requestId}</span>
+              </div>
+            </div>
+
+            {/* Score bar */}
+            <div>
+              <div className="flex justify-between text-xs mb-1.5">
+                <span style={{ color: "var(--pid-muted)" }}>Pontuação</span>
+                <span className="font-bold" style={{ color: erpResult.score >= 80 ? "var(--pid-green)" : erpResult.score >= 60 ? "#F9C784" : "var(--pid-coral-lt)" }}>
+                  {erpResult.score}/100
+                </span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--pid-navy-md)" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${erpResult.score}%`,
+                    background: erpResult.score >= 80 ? "var(--pid-green)" :
+                                erpResult.score >= 60 ? "#F9C784" : "var(--pid-coral)"
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Recommendation */}
+            <p className="text-xs leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>
+              {erpResult.recommendation}
+            </p>
+
+            {/* Next steps */}
+            <div className="space-y-1.5">
+              {erpResult.nextSteps.map((step, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="flex-none w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold mt-0.5"
+                        style={{ background: "rgba(232,88,26,0.15)", color: "var(--pid-coral-lt)" }}>
+                    {i + 1}
+                  </span>
+                  <p className="text-xs" style={{ color: "var(--pid-text-sec)" }}>{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Gráficos ────────────────────────────────────────────── */}
         {analyzed && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -427,7 +617,7 @@ export default function IndustriasPage() {
                   {pieSlices.map((s) => (
                     <div key={s.label} className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-sm flex-none" style={{ background: s.color }} />
-                      <span className="text-xs flex-1" style={{ color: "#C8DDF0" }}>{s.label}</span>
+                      <span className="text-xs flex-1" style={{ color: "var(--pid-text-sec)" }}>{s.label}</span>
                       <span className="text-xs font-bold" style={{ color: s.color }}>{s.pct}%</span>
                     </div>
                   ))}
@@ -471,7 +661,7 @@ export default function IndustriasPage() {
               <div className="flex items-center gap-2">
                 <Zap size={15} style={{ color: "var(--pid-coral)" }} />
                 <span className="text-xs font-semibold" style={{ color: "var(--pid-coral)", letterSpacing: "0.08em" }}>IA INDUSTRIAL</span>
-                <h2 className="text-sm font-bold text-white ml-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Strategic Matching</h2>
+                <h2 className="text-sm font-bold pid-txt ml-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Strategic Matching</h2>
               </div>
               <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: "rgba(34,197,94,0.12)", color: "var(--pid-green)", border: "1px solid rgba(34,197,94,0.3)" }}>
                 {MATCHES[setor].length} matches ativos
@@ -485,7 +675,7 @@ export default function IndustriasPage() {
                   {SETOR_CONFIG[setor].residuos.map((r) => (
                     <div key={r.nome} className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full flex-none" style={{ background: "var(--pid-coral)" }} />
-                      <span className="text-xs text-white flex-1">{r.nome}</span>
+                      <span className="text-xs pid-txt flex-1">{r.nome}</span>
                       <span className="text-xs font-mono" style={{ color: "var(--pid-coral-lt)" }}>{r.volume}</span>
                     </div>
                   ))}
@@ -498,7 +688,7 @@ export default function IndustriasPage() {
                   {MATCHES[setor].map((p) => (
                     <div key={p.nome} className="flex items-center gap-2 py-1 px-2 rounded-lg" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
                       <MapPin size={11} style={{ color: "var(--pid-green)", flexShrink: 0 }} />
-                      <span className="text-xs text-white flex-1 font-medium">{p.nome}</span>
+                      <span className="text-xs pid-txt flex-1 font-medium">{p.nome}</span>
                       <span className="text-[10px]" style={{ color: "var(--pid-muted)" }}>{p.km}km</span>
                       <span className="text-[10px] font-mono" style={{ color: "var(--pid-green)" }}>{p.volume}</span>
                     </div>
@@ -518,7 +708,7 @@ export default function IndustriasPage() {
             <div className="flex items-center gap-2 mb-5">
               <SlidersHorizontal size={15} style={{ color: "#7DD3FC" }} />
               <span className="text-xs font-semibold" style={{ color: "#7DD3FC", letterSpacing: "0.08em" }}>IA PREDITIVA</span>
-              <h2 className="text-sm font-bold text-white ml-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Simulador de Cenários</h2>
+              <h2 className="text-sm font-bold pid-txt ml-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Simulador de Cenários</h2>
             </div>
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
               {/* Sliders */}
@@ -574,14 +764,49 @@ export default function IndustriasPage() {
                   </div>
                 </div>
                 <button
-                  className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+                  onClick={handleSimulate}
+                  disabled={simulating}
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-60"
                   style={{ background: "linear-gradient(135deg, var(--pid-coral), var(--pid-coral-dk))", color: "white" }}
                 >
-                  Aplicar Simulação →
+                  {simulating ? (
+                    <>
+                      <span className="inline-block w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      Processando ERP...
+                    </>
+                  ) : (
+                    <>Aplicar Simulação →</>
+                  )}
                 </button>
                 <p className="text-[10px] mt-2 text-center" style={{ color: "var(--pid-muted)" }}>Os resultados são projeções estimadas</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── PID Circular ERP CTA ─────────────────────────────────── */}
+        {analyzed && (
+          <div
+            className="rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5"
+            style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.03))", border: "1px solid rgba(34,197,94,0.35)" }}
+          >
+            <div className="flex-1">
+              <p className="text-[10px] font-semibold tracking-widest mb-1" style={{ color: "var(--pid-green)", letterSpacing: "0.1em" }}>NOVO · PID CIRCULAR ERP</p>
+              <p className="text-base font-bold pid-txt mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                Mapa de Oportunidades Circulares
+              </p>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>
+                Conecte resíduos disponíveis a indústrias próximas. Calcule CO₂ evitado, viabilidade logística e economia circular para o setor {setor} na região {regiao}.
+              </p>
+            </div>
+            <Link
+              href={`/circular?setor=${encodeURIComponent(setor)}&regiao=${encodeURIComponent(regiao)}`}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-90 flex-none"
+              style={{ background: "var(--pid-green)", color: "white" }}
+            >
+              <Recycle size={15} />
+              Abrir Circular ERP
+            </Link>
           </div>
         )}
 
@@ -594,7 +819,7 @@ export default function IndustriasPage() {
             <Lightbulb size={16} style={{ color: "var(--pid-coral)", marginTop: 1, flexShrink: 0 }} />
             <div>
               <p className="text-[10px] font-semibold mb-1" style={{ color: "var(--pid-coral)", letterSpacing: "0.08em" }}>INSIGHT DE POLÍTICA PÚBLICA</p>
-              <p className="text-xs leading-relaxed" style={{ color: "#C8DDF0" }}>{POLICY_INSIGHTS[setor]}</p>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>{POLICY_INSIGHTS[setor]}</p>
             </div>
           </div>
         )}
@@ -617,5 +842,129 @@ export default function IndustriasPage() {
         </span>
       </Link>
     </div>
+
+      {/* ══ MODAL: Resultado da Simulação ══ */}
+      {showSimModal && simResult && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(6px)" }}
+          onClick={() => setShowSimModal(false)}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-3xl p-7 space-y-5 shadow-2xl overflow-y-auto"
+            style={{ background: "var(--pid-surface)", border: "1px solid var(--pid-border)", maxHeight: "90vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close */}
+            <button
+              onClick={() => setShowSimModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center hover:opacity-70 transition-opacity text-lg font-bold"
+              style={{ background: "var(--pid-navy-md)", color: "var(--pid-muted)" }}
+              aria-label="Fechar"
+            >×</button>
+
+            {/* Header */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Zap size={16} style={{ color: "var(--pid-coral)" }} />
+                <p className="text-base font-bold pid-txt" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  Resultado da Simulação
+                </p>
+              </div>
+              <p className="text-[11px]" style={{ color: "var(--pid-muted)" }}>
+                Setor: <strong>{setor}</strong> · Região: <strong>{regiao}</strong> ·
+                RSU: <strong>{rsu}%</strong> · Biomassa: <strong>{biomassa}%</strong>
+              </p>
+            </div>
+
+            {/* Big KPIs */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-2xl p-4 text-center" style={{ background: "var(--pid-surface2)", border: "1px solid var(--pid-border)" }}>
+                <p className="text-[10px] mb-1" style={{ color: "var(--pid-muted)" }}>Redução CO₂</p>
+                <p className="text-3xl font-bold" style={{ color: "var(--pid-coral-lt)", fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {simResult.co2ReductionPct.toFixed(1)}%
+                </p>
+                <p className="text-[10px] mt-1" style={{ color: "var(--pid-muted)" }}>vs. linha de base</p>
+              </div>
+              <div className="rounded-2xl p-4 text-center" style={{ background: "var(--pid-surface2)", border: "1px solid var(--pid-border)" }}>
+                <p className="text-[10px] mb-1" style={{ color: "var(--pid-muted)" }}>Economia Circular</p>
+                <p className="text-3xl font-bold" style={{ color: "var(--pid-green)", fontFamily: "'Space Grotesk', sans-serif" }}>
+                  R$ {simResult.circularSavingsM.toFixed(1)}M
+                </p>
+                <p className="text-[10px] mt-1" style={{ color: "var(--pid-muted)" }}>projeção anual</p>
+              </div>
+            </div>
+
+            {/* Score ERP */}
+            <div>
+              <div className="flex justify-between text-xs mb-1.5">
+                <span style={{ color: "var(--pid-muted)" }}>Score ERP de Viabilidade</span>
+                <span
+                  className="font-bold px-2 py-0.5 rounded-full text-[10px]"
+                  style={{
+                    background: simResult.viabilityScore >= 80 ? "rgba(34,197,94,0.15)" :
+                                simResult.viabilityScore >= 60 ? "rgba(249,199,132,0.15)" : "rgba(232,88,26,0.15)",
+                    color: simResult.viabilityScore >= 80 ? "var(--pid-green)" :
+                           simResult.viabilityScore >= 60 ? "#F9C784" : "var(--pid-coral-lt)",
+                  }}
+                >
+                  {simResult.erpStatus} · {simResult.viabilityScore}/100
+                </span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--pid-navy-md)" }}>
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${simResult.viabilityScore}%`,
+                    background: simResult.viabilityScore >= 80 ? "var(--pid-green)" :
+                                simResult.viabilityScore >= 60 ? "#F9C784" : "var(--pid-coral)",
+                    transition: "width 1s ease"
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Recommendation */}
+            <p className="text-xs leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>
+              {simResult.recommendation}
+            </p>
+
+            {/* Next steps */}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold" style={{ color: "var(--pid-muted)", letterSpacing: "0.07em" }}>PRÓXIMOS PASSOS ERP</p>
+              {simResult.nextSteps.map((step, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="flex-none w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold mt-0.5"
+                        style={{ background: "rgba(232,88,26,0.15)", color: "var(--pid-coral-lt)" }}>
+                    {i + 1}
+                  </span>
+                  <p className="text-xs" style={{ color: "var(--pid-text-sec)" }}>{step}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Export protocol */}
+            <div
+              className="flex items-start gap-2.5 px-4 py-3 rounded-xl"
+              style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}
+            >
+              <span className="text-base">✅</span>
+              <p className="text-[11px] leading-relaxed" style={{ color: "var(--pid-text-sec)" }}>
+                {simResult.exportMessage}
+              </p>
+            </div>
+
+            {/* Close action */}
+            <button
+              onClick={() => setShowSimModal(false)}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+              style={{ background: "linear-gradient(135deg, var(--pid-coral), var(--pid-coral-dk))", color: "white" }}
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
