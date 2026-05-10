@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ArcGIS SDK assets (gerado via npm — não commitar, pesa ~20MB)
+# Para regenerar: Copy-Item node_modules/@arcgis/core/assets public/arcgis-assets -Recurse
+/public/arcgis-assets/
+
+# Editor configs (preferência pessoal, não vai para o repositório)
+.vscode/
