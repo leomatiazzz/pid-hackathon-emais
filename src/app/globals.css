@@ -1,0 +1,154 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* ─── PID Design Tokens ─────────────────────────────────────── */
+:root {
+  --pid-coral:     #E8581A;
+  --pid-coral-lt:  #F4845A;
+  --pid-coral-dk:  #C4420F;
+  --pid-navy:      #0D1B2A;
+  --pid-navy-lt:   #132336;
+  --pid-navy-md:   #1C3050;
+  --pid-slate:     #2C4A6E;
+  --pid-slate-lt:  #3D6494;
+  --pid-muted:     #7A9BBF;
+  --pid-border:    #1E3A56;
+  --pid-surface:   #0F2035;
+  --pid-surface2:  #142840;
+  --pid-green:     #22C55E;
+  --pid-green-dk:  #16A34A;
+}
+
+/* ─── Base ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--pid-navy);
+  color: #E2EDF8;
+  overflow: hidden;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--pid-navy-lt); }
+::-webkit-scrollbar-thumb { background: var(--pid-slate); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--pid-muted); }
+
+/* ─── Chat Bubble Animations ────────────────────────────────── */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(232,88,26,0.5); }
+  70%  { box-shadow: 0 0 0 10px rgba(232,88,26,0); }
+  100% { box-shadow: 0 0 0 0 rgba(232,88,26,0); }
+}
+@keyframes typingDot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%            { transform: scale(1);   opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes mapPulse {
+  0%   { transform: scale(1);   opacity: 1; }
+  50%  { transform: scale(1.5); opacity: 0.6; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+.msg-user    { animation: slideInRight 0.3s ease-out; }
+.msg-bot     { animation: slideInLeft  0.3s ease-out; }
+.fade-in-up  { animation: fadeInUp     0.4s ease-out; }
+
+.typing-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--pid-muted);
+  animation: typingDot 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ─── Gradient shimmer for KPI cards ───────────────────────── */
+.shimmer-text {
+  background: linear-gradient(90deg, var(--pid-coral-lt), #F9C784, var(--pid-coral-lt));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ─── Leaflet overrides ─────────────────────────────────────── */
+.leaflet-container {
+  background: #0a1929 !important;
+  font-family: 'Inter', sans-serif;
+}
+.leaflet-control-zoom a {
+  background: var(--pid-navy-lt) !important;
+  color: var(--pid-muted) !important;
+  border-color: var(--pid-border) !important;
+}
+.leaflet-control-zoom a:hover {
+  background: var(--pid-slate) !important;
+  color: #fff !important;
+}
+.leaflet-control-attribution {
+  background: rgba(13,27,42,0.75) !important;
+  color: var(--pid-muted) !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a { color: var(--pid-coral-lt) !important; }
+
+/* Green steel marker pulse */
+.green-steel-marker {
+  animation: mapPulse 2s ease-in-out infinite;
+}
+
+/* ─── Suggestion chips ──────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pid-border);
+  background: var(--pid-surface2);
+  color: var(--pid-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.chip:hover {
+  border-color: var(--pid-coral);
+  color: var(--pid-coral-lt);
+  background: rgba(232,88,26,0.08);
+  transform: translateY(-1px);
+}
+
+/* ─── Input focus glow ──────────────────────────────────────── */
+.chat-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(232,88,26,0.4);
+}
+
+/* ─── Map overlay panel ─────────────────────────────────────── */
+.map-overlay {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
