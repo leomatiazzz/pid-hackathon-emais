@@ -387,7 +387,7 @@ export default function ChatInterface({ onMapStateChange, mapState }: ChatInterf
                  style={{ background: "linear-gradient(135deg, var(--pid-coral), var(--pid-coral-dk))" }}>
               <Sparkles size={16} className="text-white" />
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--pid-green)] border-2"
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-(--pid-green) border-2"
                   style={{ borderColor: "var(--pid-surface2)" }} />
           </div>
           <div className="flex-1">

@@ -23,12 +23,14 @@ export default function CopilotPage() {
   // ── Estado da sidebar retrátil + largura ajustável ─────────────────
   const [isCopilotOpen, setIsCopilotOpen] = useState(true);
   const [chatWidth, setChatWidth] = useState(CHAT_DEFAULT);
+  const [isResizing, setIsResizing] = useState(false);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(CHAT_DEFAULT);
 
   const onDragStart = useCallback((e: React.MouseEvent) => {
     isDragging.current = true;
+    setIsResizing(true); // <-- AVISA O REACT QUE COMEÇOU A ARRASTAR
     startX.current = e.clientX;
     startWidth.current = chatWidth;
     document.body.style.cursor = "col-resize";
@@ -40,13 +42,16 @@ export default function CopilotPage() {
       const next = Math.min(CHAT_MAX, Math.max(CHAT_MIN, startWidth.current + delta));
       setChatWidth(next);
     };
+    
     const onUp = () => {
       isDragging.current = false;
+      setIsResizing(false); // <-- AVISA O REACT QUE PAROU DE ARRASTAR
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
+    
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [chatWidth]);
@@ -133,7 +138,7 @@ export default function CopilotPage() {
                 border: "1px solid rgba(34,197,94,0.3)",
               }}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--pid-green)] animate-pulse inline-block" />
+              <span className="w-1.5 h-1.5 rounded-full bg-(--pid-green) animate-pulse inline-block" />
               Aço Verde Ativo
             </span>
           )}
@@ -154,7 +159,7 @@ export default function CopilotPage() {
             width:    isCopilotOpen ? chatWidth : 0,
             maxWidth: isCopilotOpen ? chatWidth : 0,
             opacity:  isCopilotOpen ? 1 : 0,
-            transition: isDragging.current ? "none" : "width 0.3s ease, max-width 0.3s ease, opacity 0.3s ease",
+            transition: isResizing ? "none" : "width 0.3s ease, max-width 0.3s ease, opacity 0.3s ease",
             borderRight: isCopilotOpen ? "1px solid var(--pid-border)" : "none",
           }}
           aria-hidden={!isCopilotOpen}
@@ -172,7 +177,7 @@ export default function CopilotPage() {
         {isCopilotOpen && (
           <div
             onMouseDown={onDragStart}
-            className="flex-none flex items-center justify-center z-[900] group"
+            className="flex-none flex items-center justify-center z-900 group"
             style={{
               width: 6,
               cursor: "col-resize",
@@ -206,7 +211,7 @@ export default function CopilotPage() {
           {!isCopilotOpen && (
             <button
               onClick={() => setIsCopilotOpen(true)}
-              className="absolute top-1/2 left-3 -translate-y-1/2 z-[1001]
+              className="absolute top-1/2 left-3 -translate-y-1/2 z-1001
                          flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg
                          transition-all duration-200 hover:scale-105 active:scale-95"
               style={{

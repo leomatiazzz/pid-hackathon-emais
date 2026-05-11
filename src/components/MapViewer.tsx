@@ -152,7 +152,7 @@ export default function MapViewer({ mapState, onMapStateChange }: MapViewerProps
 
       {/* ── Painel de Camadas (direita, retrátil) ─────────────────── */}
       <div
-        className="absolute top-4 right-0 z-[1000] flex items-stretch"
+        className="absolute top-4 right-0 z-1000 flex items-stretch"
         style={{ height: "auto" }}
       >
         {/* Aba de abertura */}
@@ -278,7 +278,7 @@ export default function MapViewer({ mapState, onMapStateChange }: MapViewerProps
       </div>
 
       {/* ── Legenda fixa (canto inferior esquerdo) ─────────────────── */}
-      <div className="absolute bottom-8 left-4 z-[1000]">
+      <div className="absolute bottom-8 left-4 z-1000">
         <div
           className="px-3 py-3 rounded-xl text-xs space-y-1.5"
           style={{
@@ -363,7 +363,7 @@ export default function MapViewer({ mapState, onMapStateChange }: MapViewerProps
       </div>
 
       {/* ── Attribution ── */}
-      <div className="absolute bottom-2 right-2 z-[1000]">
+      <div className="absolute bottom-2 right-2 z-1000">
         <div
           className="flex items-center gap-1 px-2 py-1 rounded"
           style={{
