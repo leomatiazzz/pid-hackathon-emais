@@ -61,7 +61,7 @@ export default function CopilotPage() {
   };
 
   return (
-    <main className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--pid-navy)]">
+    <main className="flex flex-col h-screen w-screen overflow-hidden bg-(--pid-navy)">
 
       {/* ══════════════════════════════════════════════════════════
           HEADER — fixo no topo (var(--pid-header-h) = 80px)
